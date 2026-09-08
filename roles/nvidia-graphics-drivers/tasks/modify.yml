@@ -11,7 +11,6 @@
 - name: Append suffix to the package version on the first line of debian/changelog
   ansible.builtin.replace:
     path: "{{ source_dir }}/debian/changelog"
-    # \A targets only the absolute first line of the file
-    # ^([^ ]+) \(([^)]+)\) captures package name (\1) and version (\2)
-    regexp: '\A^([^ ]+) \(([^)]+)\)'
+    regexp: >-
+      \A^([^ ]+) \(([^)]+?)(?:{{ nvidia_version_suffix | regex_escape() }})?\)
     replace: '\1 (\2{{ nvidia_version_suffix }})'
