@@ -3,6 +3,9 @@
     path: "{{ nvidia_build_dir }}"
     state: directory
 
+- name: Git init
+  ansible.builtin.include_tasks: git.yml
+
 - name: Download sources
   ansible.builtin.include_tasks: download.yml
 

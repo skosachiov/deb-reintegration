@@ -1,0 +1,76 @@
+- name: Initialize git repository in source directory
+  ansible.builtin.command:
+    cmd: git init
+    chdir: "{{ source_dir }}"
+  register: git_init_result
+  changed_when: "'Reinitialized' not in git_init_result.stdout"
+
+- name: Extract package version from DSC URL
+  ansible.builtin.set_fact:
+    nvidia_version: "{{ nvidia_dsc_url | regex_replace('.*_([0-9.]+)-[0-9.]+.*', '\\1') }}"
+
+- name: Create upstream branch with empty commit
+  ansible.builtin.shell:
+    cmd: |
+      git checkout --orphan upstream
+      git rm -rf . || true
+      git commit --allow-empty -m "Initial empty upstream branch"
+    chdir: "{{ source_dir }}"
+  register: upstream_branch_result
+  changed_when: true
+
+- name: Create upstream tag with extracted version
+  ansible.builtin.command:
+    cmd: git tag -a "upstream/{{ nvidia_version }}" -m "Upstream version {{ nvidia_version }}"
+    chdir: "{{ source_dir }}"
+  register: git_tag_result
+  changed_when: true
+  failed_when:
+    - git_tag_result.rc != 0
+    - "'already exists' not in git_tag_result.stderr"
+
+- name: Read gbp.conf to get debian-branch name
+  ansible.builtin.shell:
+    cmd: grep -Po 'debian-branch\s*=\s*\K\S+' "{{ source_dir }}/debian/gbp.conf" 2>/dev/null || echo "debian/master"
+  register: gbp_conf_result
+  changed_when: false
+
+- name: Set debian-branch variable
+  ansible.builtin.set_fact:
+    debian_branch: "{{ gbp_conf_result.stdout | trim }}"
+
+- name: Create and switch to debian-branch
+  ansible.builtin.command:
+    cmd: git checkout -b "{{ debian_branch }}"
+    chdir: "{{ source_dir }}"
+  register: git_checkout_debian
+  changed_when: true
+  failed_when:
+    - git_checkout_debian.rc != 0
+    - "'already exists' not in git_checkout_debian.stderr"
+
+- name: Create debian tag with extracted version
+  ansible.builtin.command:
+    cmd: git tag -a "debian/{{ nvidia_version }}" -m "Debian version {{ nvidia_version }}"
+    chdir: "{{ source_dir }}"
+  register: git_tag_debian_result
+  changed_when: true
+  failed_when:
+    - git_tag_debian_result.rc != 0
+    - "'already exists' not in git_tag_debian_result.stderr"
+
+- name: Add debian folder contents to git
+  ansible.builtin.command:
+    cmd: git add debian/
+    chdir: "{{ source_dir }}"
+  changed_when: true
+
+- name: Commit debian folder contents
+  ansible.builtin.command:
+    cmd: git commit -m "Initial debian packaging"
+    chdir: "{{ source_dir }}"
+  register: git_commit_result
+  changed_when: "'nothing to commit' not in git_commit_result.stdout"
+  failed_when:
+    - git_commit_result.rc != 0
+    - "'nothing to commit' not in git_commit_result.stdout"

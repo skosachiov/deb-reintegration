@@ -14,3 +14,10 @@
     regexp: >-
       \A^([^ ]+) \(([^)]+?)(?:{{ nvidia_version_suffix | regex_escape() }})?\)
     replace: '\1 (\2{{ nvidia_version_suffix }})'
+
+- name: Copy gbp.conf from home directory to debian folder
+  ansible.builtin.copy:
+    src: "~/.gbp.conf"
+    dest: "{{ source_dir }}/debian/gbp.conf"
+    mode: '0644'
+    force: true
