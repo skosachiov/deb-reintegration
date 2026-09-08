@@ -1,3 +1,9 @@
+- name: Ensure source directory exists
+  ansible.builtin.file:
+    path: "{{ source_dir }}"
+    state: directory
+    mode: '0755'
+
 - name: Initialize git repository in source directory
   ansible.builtin.command:
     cmd: git init
