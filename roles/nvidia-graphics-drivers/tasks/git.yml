@@ -4,10 +4,19 @@
     state: directory
     mode: '0755'
 
+- name: Set git environment variables
+  ansible.builtin.set_fact:
+    git_env:
+      GIT_AUTHOR_EMAIL: "builder@example.com"
+      GIT_AUTHOR_NAME: "Package Builder"
+      GIT_COMMITTER_EMAIL: "builder@example.com"
+      GIT_COMMITTER_NAME: "Package Builder"
+
 - name: Initialize git repository in source directory
   ansible.builtin.command:
     cmd: git init
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: git_init_result
   changed_when: "'Reinitialized' not in git_init_result.stdout"
 
@@ -15,25 +24,22 @@
   ansible.builtin.set_fact:
     nvidia_version: "{{ nvidia_dsc_url | regex_replace('.*_([0-9.]+)-[0-9.]+.*', '\\1') }}"
 
-- name: Set git user configuration
-  ansible.builtin.set_fact:
-    git_user_email: "builder@example.com"
-    git_user_name: "Package Builder"
-
 - name: Create upstream branch with empty commit
   ansible.builtin.shell:
     cmd: |
       git checkout --orphan upstream
       git rm -rf . 2>/dev/null || true
-      git -c user.email="{{ git_user_email }}" -c user.name="{{ git_user_name }}" commit --allow-empty -m "Initial empty upstream branch"
+      git commit --allow-empty -m "Initial empty upstream branch"
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: upstream_branch_result
   changed_when: true
 
 - name: Create upstream tag with extracted version
   ansible.builtin.command:
-    cmd: git -c user.email="{{ git_user_email }}" -c user.name="{{ git_user_name }}" tag -a "upstream/{{ nvidia_version }}" -m "Upstream version {{ nvidia_version }}"
+    cmd: git tag -a "upstream/{{ nvidia_version }}" -m "Upstream version {{ nvidia_version }}"
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: git_tag_result
   changed_when: true
   failed_when:
@@ -54,6 +60,7 @@
   ansible.builtin.command:
     cmd: git checkout -b "{{ debian_branch }}"
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: git_checkout_debian
   changed_when: true
   failed_when:
@@ -64,6 +71,7 @@
   ansible.builtin.command:
     cmd: git tag -a "debian/{{ nvidia_version }}" -m "Debian version {{ nvidia_version }}"
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: git_tag_debian_result
   changed_when: true
   failed_when:
@@ -74,12 +82,14 @@
   ansible.builtin.command:
     cmd: git add debian/
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   changed_when: true
 
 - name: Commit debian folder contents
   ansible.builtin.command:
     cmd: git commit -m "Initial debian packaging"
     chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
   register: git_commit_result
   changed_when: "'nothing to commit' not in git_commit_result.stdout"
   failed_when:
