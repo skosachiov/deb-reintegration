@@ -1,16 +1,7 @@
-- name: Calculate and set driver source variables
-  ansible.builtin.set_fact:
-    dsc_file: "{{ nvidia_dsc_url | basename }}"
-    source_dirname: "{{ (nvidia_dsc_url | basename) | splitext | first }}"
-    source_dir: "{{ nvidia_build_dir }}/{{ (nvidia_dsc_url | basename) | splitext | first }}"
-
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ nvidia_build_dir }}"
     state: directory
-
-- name: Git init
-  ansible.builtin.include_tasks: git.yml
 
 - name: Download sources
   ansible.builtin.include_tasks: download.yml

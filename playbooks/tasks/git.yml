@@ -1,3 +1,23 @@
+# Shared git-buildpackage finalization tasks. Run in playbook post_tasks, after
+# the package source tree has been filled (downloaded, unpacked, stripped,
+# modified).
+#
+# Required inputs:
+#   dsc_url     - DSC file URL, e.g. .../package_1.2.3-1.dsc
+#   build_root  - root build directory
+#
+# Path layout (source_dirname = dsc basename without .dsc extension):
+#   build_dir   = build_root/<package-name>
+#   source_dir  = build_dir/<source_dirname>
+
+- name: Calculate and set package source variables
+  ansible.builtin.set_fact:
+    dsc_file: "{{ dsc_url | basename }}"
+    source_dirname: "{{ (dsc_url | basename) | splitext | first }}"
+    build_dir: "{{ build_root }}/{{ (dsc_url | basename) | split('_') | first }}"
+    source_dir: "{{ build_root }}/{{ (dsc_url | basename) | split('_') | first }}/{{ (dsc_url | basename) | splitext | first }}"
+    package_version: "{{ dsc_url | regex_replace('.*_([0-9.]+)-[0-9.]+.*', '\\1') }}"
+
 - name: Ensure source directory exists
   ansible.builtin.file:
     path: "{{ source_dir }}"
@@ -20,24 +40,25 @@
   register: git_init_result
   changed_when: "'Reinitialized' not in git_init_result.stdout"
 
-- name: Extract package version from DSC URL
-  ansible.builtin.set_fact:
-    nvidia_version: "{{ nvidia_dsc_url | regex_replace('.*_([0-9.]+)-[0-9.]+.*', '\\1') }}"
-
-- name: Create upstream branch with empty commit
+- name: Create upstream branch and commit source
   ansible.builtin.shell:
     cmd: |
-      git checkout --orphan upstream
-      git rm -rf . 2>/dev/null || true
-      git commit --allow-empty -m "Initial empty upstream branch"
+      if git rev-parse --verify upstream >/dev/null 2>&1; then
+        git checkout upstream
+      else
+        git checkout --orphan upstream
+        git add .
+        git rm -r --cached debian/ >/dev/null 2>&1 || true
+        git commit -m "Import upstream source"
+      fi
     chdir: "{{ source_dir }}"
   environment: "{{ git_env }}"
   register: upstream_branch_result
   changed_when: true
 
-- name: Create upstream tag with extracted version
+- name: Create upstream tag with package version
   ansible.builtin.command:
-    cmd: git tag -a "upstream/{{ nvidia_version }}" -m "Upstream version {{ nvidia_version }}"
+    cmd: git tag -a "upstream/{{ package_version }}" -m "Upstream version {{ package_version }}"
     chdir: "{{ source_dir }}"
   environment: "{{ git_env }}"
   register: git_tag_result
@@ -67,17 +88,6 @@
     - git_checkout_debian.rc != 0
     - "'already exists' not in git_checkout_debian.stderr"
 
-- name: Create debian tag with extracted version
-  ansible.builtin.command:
-    cmd: git tag -a "debian/{{ nvidia_version }}" -m "Debian version {{ nvidia_version }}"
-    chdir: "{{ source_dir }}"
-  environment: "{{ git_env }}"
-  register: git_tag_debian_result
-  changed_when: true
-  failed_when:
-    - git_tag_debian_result.rc != 0
-    - "'already exists' not in git_tag_debian_result.stderr"
-
 - name: Add debian folder contents to git
   ansible.builtin.command:
     cmd: git add debian/
@@ -95,3 +105,14 @@
   failed_when:
     - git_commit_result.rc != 0
     - "'nothing to commit' not in git_commit_result.stdout"
+
+- name: Create debian tag with package version
+  ansible.builtin.command:
+    cmd: git tag -a "debian/{{ package_version }}" -m "Debian version {{ package_version }}"
+    chdir: "{{ source_dir }}"
+  environment: "{{ git_env }}"
+  register: git_tag_debian_result
+  changed_when: true
+  failed_when:
+    - git_tag_debian_result.rc != 0
+    - "'already exists' not in git_tag_debian_result.stderr"

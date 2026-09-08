@@ -4,6 +4,9 @@
     nvidia_dsc_filename: "{{ nvidia_dsc_url | basename }}"
     nvidia_package_name: "{{ nvidia_dsc_url | basename | split('_') | first }}"
     nvidia_build_dir: "{{ corpos_build_root }}/{{ nvidia_dsc_url | basename | split('_') | first }}"
+    dsc_file: "{{ nvidia_dsc_url | basename }}"
+    source_dirname: "{{ (nvidia_dsc_url | basename) | splitext | first }}"
+    source_dir: "{{ nvidia_build_dir }}/{{ (nvidia_dsc_url | basename) | splitext | first }}"
 
 - name: Ensure build directory exists
   ansible.builtin.file:

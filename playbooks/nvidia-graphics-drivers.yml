@@ -3,3 +3,10 @@
   become: true
   roles:
     - role: nvidia-graphics-drivers
+
+  post_tasks:
+    - name: Git-buildpackage finalization
+      ansible.builtin.include_tasks: tasks/git.yml
+      vars:
+        dsc_url: "{{ nvidia_dsc_url }}"
+        build_root: "{{ corpos_build_root }}"
