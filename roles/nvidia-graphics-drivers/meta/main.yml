@@ -1,0 +1,21 @@
+galaxy_info:
+  author: corpos
+  description: Adapts Ubuntu nvidia-graphics-drivers-595 for a Debian rebuild
+  company: corpos
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: Ubuntu
+      versions:
+        - noble
+        - plucky
+        - resolute
+  galaxy_tags:
+    - packaging
+    - debian
+    - nvidia
+dependencies: []

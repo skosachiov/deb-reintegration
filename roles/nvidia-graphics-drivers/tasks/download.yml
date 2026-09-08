@@ -1,0 +1,62 @@
+- name: Set DSC-related variables
+  ansible.builtin.set_fact:
+    nvidia_dsc_dir: "{{ nvidia_dsc_url | dirname }}"
+    nvidia_dsc_filename: "{{ nvidia_dsc_url | basename }}"
+    nvidia_package_name: "{{ nvidia_dsc_url | basename | split('_') | first }}"
+    nvidia_build_dir: "{{ corpos_build_root }}/{{ nvidia_dsc_url | basename | split('_') | first }}"
+
+- name: Ensure build directory exists
+  ansible.builtin.file:
+    path: "{{ nvidia_build_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download Ubuntu DSC file
+  ansible.builtin.get_url:
+    url: "{{ nvidia_dsc_url }}"
+    dest: "{{ nvidia_build_dir }}/{{ nvidia_dsc_filename }}"
+    mode: "0644"
+  register: nvidia_download_dsc_result
+
+- name: Download Ubuntu source files from nvidia_source_files list
+  ansible.builtin.get_url:
+    url: "{{ nvidia_base_url }}/{{ item }}"
+    dest: "{{ nvidia_build_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ nvidia_source_files | default([]) }}"
+  register: nvidia_download_source_files_result
+  when: nvidia_source_files is defined and nvidia_source_files | length > 0
+
+- name: Extract source filenames from DSC file
+  ansible.builtin.shell:
+    cmd: |
+      awk '/^Files:/{flag=1; next} /^[^ ]/{flag=0} flag && NF>=3 {print $NF}' "{{ nvidia_build_dir }}/{{ nvidia_dsc_filename }}"
+  register: dsc_files_output
+  changed_when: false
+
+- name: Set source_filenames fact
+  ansible.builtin.set_fact:
+    nvidia_source_filenames: "{{ dsc_files_output.stdout_lines }}"
+
+- name: Download source files listed in DSC
+  ansible.builtin.get_url:
+    url: "{{ nvidia_dsc_dir }}/{{ item }}"
+    dest: "{{ nvidia_build_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ nvidia_source_filenames }}"
+  register: nvidia_download_dsc_files_result
+  when: nvidia_source_filenames | length > 0
+
+- name: Display downloaded source files
+  ansible.builtin.debug:
+    msg: "Downloaded source files: {{ nvidia_source_filenames | join(', ') }}"
+  when: nvidia_source_filenames | length > 0
+
+- name: Display download summary
+  ansible.builtin.debug:
+    msg: |
+      Build directory: {{ nvidia_build_dir }}
+      Package name: {{ nvidia_package_name }}
+      DSC file: {{ nvidia_dsc_filename }}
+      Total source files downloaded: {{ nvidia_source_filenames | length }}
+      

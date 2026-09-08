@@ -1,0 +1,17 @@
+- name: Insert X-flags before the first empty line
+  ansible.builtin.lineinfile:
+    path: "{{ source_dir }}/debian/control"
+    insertbefore: '^$'
+    line: "{{ item }}"
+    firstmatch: true
+    # lineinfile checks if the line exists before adding
+    # It uses the 'line' value as the search pattern
+  loop: "{{ corpos_control_x_flags }}"
+
+- name: Append suffix to the package version on the first line of debian/changelog
+  ansible.builtin.replace:
+    path: "{{ source_dir }}/debian/changelog"
+    # \A targets only the absolute first line of the file
+    # ^([^ ]+) \(([^)]+)\) captures package name (\1) and version (\2)
+    regexp: '\A^([^ ]+) \(([^)]+)\)'
+    replace: '\1 (\2{{ nvidia_version_suffix }})'

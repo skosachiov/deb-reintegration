@@ -1,0 +1,36 @@
+- name: Calculate and set driver source variables
+  ansible.builtin.set_fact:
+    dsc_file: "{{ nvidia_dsc_url | basename }}"
+    source_dirname: "{{ (nvidia_dsc_url | basename) | splitext | first }}"
+    source_dir: "{{ nvidia_build_dir }}/{{ (nvidia_dsc_url | basename) | splitext | first }}"
+
+- name: Check if existing debian/changelog exists
+  ansible.builtin.stat:
+    path: "{{ source_dir }}/debian/changelog"
+  register: changelog_stat
+
+- name: Extract current version from changelog if it exists
+  ansible.builtin.command: head -n 1 {{ source_dir }}/debian/changelog
+  register: changelog_header
+  changed_when: false
+  failed_when: false
+  when: changelog_stat.stat.exists
+
+- name: Remove stale unpack directory if version is outdated
+  ansible.builtin.file:
+    path: "{{ source_dir }}"
+    state: absent
+  when: >
+    changelog_stat.stat.exists and 
+    nvidia_version_suffix not in changelog_header.stdout
+
+- name: Unpack source tree with dpkg-source -x
+  ansible.builtin.command: >
+    dpkg-source{{ ' --no-check' if nvidia_dpkg_source_no_check else '' }} 
+    -x {{ dsc_file }} 
+    {{ source_dirname }}
+  args:
+    chdir: "{{ nvidia_build_dir }}"
+  when: >
+    not changelog_stat.stat.exists or 
+    nvidia_version_suffix not in changelog_header.stdout

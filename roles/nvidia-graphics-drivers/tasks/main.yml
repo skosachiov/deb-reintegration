@@ -1,0 +1,19 @@
+- name: Ensure build directory exists
+  ansible.builtin.file:
+    path: "{{ nvidia_build_dir }}"
+    state: directory
+
+- name: Download sources
+  ansible.builtin.include_tasks: download.yml
+
+- name: Unpack source with dpkg-source
+  ansible.builtin.include_tasks: unpack.yml
+
+- name: Strip Ubuntu-specific packaging
+  ansible.builtin.include_tasks: strip.yml
+
+- name: Modify for the Debian build
+  ansible.builtin.include_tasks: modify.yml
+
+- name: Test build ability
+  ansible.builtin.include_tasks: build.yml
