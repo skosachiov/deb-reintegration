@@ -19,8 +19,8 @@
   ansible.builtin.shell:
     cmd: |
       git checkout --orphan upstream
-      git rm -rf . || true
-      git commit --allow-empty -m "Initial empty upstream branch"
+      git rm -rf . 2>/dev/null || true
+      git -c user.email="builder@example.com" -c user.name="Package Builder" commit --allow-empty -m "Initial empty upstream branch"
     chdir: "{{ source_dir }}"
   register: upstream_branch_result
   changed_when: true
