@@ -1,5 +1,4 @@
 corpos_build_root: build
-nvidia_build_dir: "{{ corpos_build_root }}/nvidia-graphics-drivers-595"
 nvidia_dsc_url: http://archive.ubuntu.com/ubuntu/pool/restricted/n/nvidia-graphics-drivers-595/nvidia-graphics-drivers-595_595.84-0ubuntu0.26.04.1.dsc
 nvidia_version_suffix: +0corpos1
 corpos_control_x_flags:

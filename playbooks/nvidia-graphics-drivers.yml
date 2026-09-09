@@ -1,6 +1,14 @@
 - name: Build nvidia-graphics-drivers-595 from Ubuntu sources for Debian
   hosts: builders
   become: true
+  pre_tasks:
+    - name: Download sources
+      ansible.builtin.include_tasks: tasks/download.yml
+      vars:
+        dsc_url: "{{ nvidia_dsc_url }}"
+        build_root: "{{ corpos_build_root }}"
+        source_files: "{{ nvidia_source_files | default([]) }}"
+
   roles:
     - role: nvidia-graphics-drivers
 

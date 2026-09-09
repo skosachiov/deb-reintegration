@@ -1,6 +1,6 @@
 - name: Display build info (commands only)
   ansible.builtin.debug:
     msg:
-      - "Extract package list: awk '/^Package-List:/{flag=1; next} /^[^ ]/{flag=0} flag && NF>=2 {print $1}' \"{{ nvidia_build_dir }}/{{ nvidia_dsc_filename }}\""
-      - "Install build dependencies: yes | mk-build-deps -i -r (in {{ nvidia_source_dir }})"
-      - "Build packages: dpkg-buildpackage -us -uc -b (in {{ nvidia_source_dir }})"
+      - "Extract package list: awk '/^Package-List:/{flag=1; next} /^[^ ]/{flag=0} flag && NF>=2 {print $1}' \"{{ build_dir }}/{{ dsc_filename }}\""
+      - "Install build dependencies: yes | mk-build-deps -i -r (in {{ source_dir }})"
+      - "Build packages: dpkg-buildpackage -us -uc -b (in {{ source_dir }})"

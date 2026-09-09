@@ -24,7 +24,7 @@
     -x {{ dsc_file }}
     {{ source_dirname }}
   args:
-    chdir: "{{ nvidia_build_dir }}"
+    chdir: "{{ build_dir }}"
   when: >
     not changelog_stat.stat.exists or
     nvidia_version_suffix not in changelog_header.stdout

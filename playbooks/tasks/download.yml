@@ -1,0 +1,85 @@
+# Shared Debian source download tasks. Run in playbook pre_tasks, before the
+# role that unpacks, strips, modifies, and builds the package source tree.
+#
+# Required inputs:
+#   dsc_url      - DSC file URL, e.g. .../package_1.2.3-1.dsc
+#   build_root   - root build directory
+#
+# Optional inputs:
+#   source_files - list of additional source filenames to download (default: [])
+#   base_url     - base URL for additional source files (default: dirname of dsc_url)
+#
+# Produced facts (available to all subsequent tasks in the play):
+#   build_dir          = build_root/<package-name>
+#   source_dir         = build_dir/<source_dirname>
+#   dsc_file           = <dsc-basename>
+#   dsc_dir            = dirname of dsc_url
+#   dsc_filename       = <dsc-basename>
+#   package_name       = <dsc-basename split on _ first field>
+#   source_dirname     = <dsc-basename without .dsc extension>
+#   source_filenames   = list of files from DSC Files: section
+
+- name: Set DSC-related variables
+  ansible.builtin.set_fact:
+    dsc_dir: "{{ dsc_url | dirname }}"
+    dsc_filename: "{{ dsc_url | basename }}"
+    package_name: "{{ dsc_url | basename | split('_') | first }}"
+    build_dir: "{{ build_root }}/{{ dsc_url | basename | split('_') | first }}"
+    dsc_file: "{{ dsc_url | basename }}"
+    source_dirname: "{{ (dsc_url | basename) | splitext | first }}"
+    source_dir: "{{ build_root }}/{{ dsc_url | basename | split('_') | first }}/{{ (dsc_url | basename) | splitext | first }}"
+
+- name: Ensure build directory exists
+  ansible.builtin.file:
+    path: "{{ build_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download DSC file
+  ansible.builtin.get_url:
+    url: "{{ dsc_url }}"
+    dest: "{{ build_dir }}/{{ dsc_filename }}"
+    mode: "0644"
+  register: download_dsc_result
+
+- name: Download additional source files from source_files list
+  ansible.builtin.get_url:
+    url: "{{ base_url | default(dsc_dir) }}/{{ item }}"
+    dest: "{{ build_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ source_files | default([]) }}"
+  register: download_source_files_result
+  when: source_files is defined and source_files | length > 0
+
+- name: Extract source filenames from DSC file
+  ansible.builtin.shell:
+    cmd: |
+      awk '/^Files:/{flag=1; next} /^[^ ]/{flag=0} flag && NF>=3 {print $NF}' "{{ build_dir }}/{{ dsc_filename }}"
+  register: dsc_files_output
+  changed_when: false
+
+- name: Set source_filenames fact
+  ansible.builtin.set_fact:
+    source_filenames: "{{ dsc_files_output.stdout_lines }}"
+
+- name: Download source files listed in DSC
+  ansible.builtin.get_url:
+    url: "{{ dsc_dir }}/{{ item }}"
+    dest: "{{ build_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ source_filenames }}"
+  register: download_dsc_files_result
+  when: source_filenames | length > 0
+
+- name: Display downloaded source files
+  ansible.builtin.debug:
+    msg: "Downloaded source files: {{ source_filenames | join(', ') }}"
+  when: source_filenames | length > 0
+
+- name: Display download summary
+  ansible.builtin.debug:
+    msg: |
+      Build directory: {{ build_dir }}
+      Package name: {{ package_name }}
+      DSC file: {{ dsc_filename }}
+      Total source files downloaded: {{ source_filenames | length }}
